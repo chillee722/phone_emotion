@@ -1,6 +1,7 @@
 streamlit
-pandas
+streamlit-drawable-canvas
 numpy
+pandas
 matplotlib
 requests
 beautifulsoup4
