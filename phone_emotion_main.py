@@ -475,7 +475,7 @@ if page.startswith("1"):
             st.session_state["pattern_canvas_key"] += 1
             st.session_state["pattern_start_time"] = None
             st.session_state["pattern_duration"] = None
-            st.experimental_rerun()
+            st.rerun()
 
     st.markdown("---")
     st.markdown("**아래 상자 안에서 패턴을 그려보세요.**")
@@ -518,7 +518,7 @@ if page.startswith("1"):
             st.session_state["pattern_duration"] = None
             st.session_state["pattern_start_time"] = None
             st.session_state["pattern_canvas_key"] += 1
-            st.experimental_rerun()
+            st.rerun()
 
 
 # ===============================
