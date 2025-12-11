@@ -6,4 +6,3 @@ matplotlib
 requests
 beautifulsoup4
 Pillow
-streamlit-key-press==0.0.1  # 최신 버전 또는 명확한 버전 명시 (버전 충돌 방지)
