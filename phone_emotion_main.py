@@ -522,56 +522,69 @@ if page.startswith("2"):
 # 9-3. 스크롤 테스트
 # ===============================
 
-if page.startswith("3"):
+
+elif page.startswith("3"):
     st.header("🧷 3. 스크롤 테스트")
 
     st.markdown(
         """
-        이번 화면에서는 **스크롤하는 방식**을 가볍게 살펴봅니다.
+        이번 화면에서는 **스크롤 행위의 리듬**을 가볍게 살펴봅니다.
 
         1. 아래 긴 텍스트를 천천히 내려가면서 읽어보거나  
-        2. 아래쪽 버튼을 눌러 **화면을 내리는 느낌**으로 사용해 보세요.
+        2. 텍스트 중간중간 나타나는 **'스크롤 기록' 버튼**을 눌러, 특정 지점까지 화면을 내린 시점을 기록해주세요.
+        
+        평소처럼 자연스럽게 화면을 내려본다고 생각하면 됩니다.
         """
     )
 
     col_a, col_b = st.columns(2)
     with col_a:
-        if st.button("스크롤 테스트 시작 / 재시작"):
+        if st.button("스크롤 테스트 시작 / 재시작", key="scroll_start_btn"):
             st.session_state["scroll_start_time"] = time.time()
             st.session_state["scroll_click_times"] = []
-            st.success("스크롤 테스트를 시작했습니다. 아래 내용을 읽거나 스크롤 버튼을 눌러보세요.")
+            st.success("스크롤 테스트를 시작했습니다. 아래 내용을 읽거나 스크롤 기록 버튼을 눌러보세요.")
     with col_b:
-        if st.button("스크롤 기록 초기화"):
+        if st.button("스크롤 기록 초기화", key="scroll_reset_btn"):
             st.session_state["scroll_start_time"] = None
             st.session_state["scroll_click_times"] = []
             st.info("스크롤 관련 기록을 모두 지웠습니다.")
 
     st.markdown("---")
 
-    long_text = """
-    이 부분은 스크롤을 만들기 위한 예시 텍스트입니다.  
-    ... (중략)
-    """ * 6
+    # --- 스크롤 체크포인트 함수 정의 ---
+    def scroll_checkpoint(checkpoint_id: int):
+        if st.button(f"⬇️ 스크롤 기록: 체크포인트 {checkpoint_id}", key=f"cp_btn_{checkpoint_id}"):
+            if st.session_state["scroll_start_time"] is None:
+                st.warning("테스트를 시작 버튼을 먼저 눌러주세요.")
+                st.session_state["scroll_start_time"] = time.time() # 시작 시간 자동 기록
+            else:
+                st.session_state["scroll_click_times"].append(time.time())
+                st.info(f"체크포인트 {checkpoint_id} 시각을 기록했습니다.")
 
-    st.write(long_text)
 
-    st.markdown("**버튼을 눌러서 '스크롤했다'는 표시를 남길 수도 있습니다.**")
+    # --- 긴 텍스트 및 체크포인트 배치 ---
+    
+    st.markdown("### 섹션 1: 시작 지점")
+    st.write("이 부분은 스크롤을 만들기 위한 예시 텍스트입니다. 화면을 내리는 리듬을 측정합니다. 너무 의식하지 말고, 평소처럼 내려주세요." * 2)
 
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("⬇️ 아래로 더 내려가기 느낌"):
-            if st.session_state["scroll_start_time"] is None: st.session_state["scroll_start_time"] = time.time()
-            st.session_state["scroll_click_times"].append(time.time())
-    with col2:
-        if st.button("⬇️ 다음 부분 보기 느낌"):
-            if st.session_state["scroll_start_time"] is None: st.session_state["scroll_start_time"] = time.time()
-            st.session_state["scroll_click_times"].append(time.time())
+    scroll_checkpoint(1) # 첫 번째 체크포인트
 
-    st.write(f"스크롤 버튼을 누른 횟수: **{len(st.session_state['scroll_click_times'])}**")
+    st.markdown("### 섹션 2: 중간 탐색")
+    st.write("스크롤을 내리는 동안 사용자의 리듬이 일정하거나, 혹은 갑자기 빨라지거나 느려지는 경향이 감정 상태를 반영합니다. 예를 들어, 조급한 상태에서는 리듬이 불규칙해지기 쉽습니다." * 4)
+
+    scroll_checkpoint(2) # 두 번째 체크포인트
+
+    st.markdown("### 섹션 3: 심층 탐색")
+    st.write("긴 텍스트를 읽어야 할 때, 화면을 톡톡 내리는 패턴(짧은 ITD, 낮은 분산)은 집중하고 있는 상태일 수 있습니다. 반면, 길게 멈춘 후 한 번에 많이 내리는 패턴(긴 ITD)은 피로도를 나타낼 수 있습니다." * 6)
+
+    scroll_checkpoint(3) # 세 번째 체크포인트
+    
+    st.markdown("---")
+
+    st.write(f"총 기록된 스크롤 이벤트 수: **{len(st.session_state['scroll_click_times'])}**")
     
     st.markdown("---")
     collect_self_report("scroll")
-
 
 # ===============================
 # 9-4. 사용자 활동 분석
