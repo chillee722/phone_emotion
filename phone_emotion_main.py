@@ -1,20 +1,37 @@
 import time
 import io
 import math
+from pathlib import Path
 from typing import Dict, Any, List
 
 import numpy as np
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
+import matplotlib
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
 from PIL import Image, ImageDraw
 import streamlit as st
 from streamlit_drawable_canvas import st_canvas
 
 
 # ===============================
-# 0. 기본 설정 & 화면 스타일
+# 0. 한글 폰트 설정 (NanumGothic-Regular.ttf 사용)
+# ===============================
+
+font_path = Path(__file__).parent / "NanumGothic-Regular.ttf"
+if font_path.exists():
+    fontprop = fm.FontProperties(fname=str(font_path))
+    matplotlib.rcParams["font.family"] = fontprop.get_name()
+else:
+    matplotlib.rcParams["font.family"] = "DejaVu Sans"  # fallback
+
+matplotlib.rcParams["axes.unicode_minus"] = False
+
+
+# ===============================
+# 1. 기본 설정 & 화면 스타일
 # ===============================
 
 st.set_page_config(
@@ -22,7 +39,7 @@ st.set_page_config(
     layout="wide"
 )
 
-# 여백 조금 줄이고, 헤더/풋터 숨기기
+# 여백 줄이고 헤더/풋터 숨기기
 st.markdown("""
     <style>
         .block-container {
@@ -36,30 +53,49 @@ st.markdown("""
 
 
 # ===============================
-# 1. (선 배경 관련 함수는 남겨둬도 되지만, canvas에선 사용 안 함)
+# 2. 점 가이드용 초기 캔버스 JSON 만들기
 # ===============================
 
-@st.cache_data
-def make_line_background(width=600, height=300) -> Image.Image:
-    img = Image.new("RGB", (width, height), "white")
-    draw = ImageDraw.Draw(img)
-    y = height // 2
-    margin = 40
-    draw.line((margin, y, width - margin, y), fill=(220, 220, 220), width=2)
-    return img
+def make_dot_guides(width: int = 600, height: int = 300, n_points: int = 6) -> Dict[str, Any]:
+    """
+    캔버스 위에 미리 '점' 몇 개를 찍어두는 fabric.js 스타일 JSON 생성.
+    사용자는 이 점들을 자연스럽게 이어서 선을 그리게 된다.
+    """
+    xs = np.linspace(60, width - 60, n_points)
+    # 약간의 위/아래 변화를 줘서 너무 완전한 직선이 되지 않게
+    ys = height / 2 + np.sin(np.linspace(0, math.pi, n_points)) * 40
 
+    objects = []
+    for x, y in zip(xs, ys):
+        objects.append({
+            "type": "circle",
+            "radius": 6,
+            "fill": "#4A90E2",
+            "stroke": "#FFFFFF",
+            "strokeWidth": 2,
+            "left": float(x - 6),
+            "top": float(y - 6),
+            "originX": "left",
+            "originY": "top"
+        })
 
-def pil_to_bytes(img: Image.Image) -> bytes:
-    buf = io.BytesIO()
-    img.save(buf, format="PNG")
-    return buf.getvalue()
+    return {
+        "version": "4.4.0",
+        "objects": objects
+    }
 
 
 # ===============================
-# 2. 선 따라 그리기 특징 추출
+# 3. 선 따라 그리기 특징 추출
 # ===============================
 
 def compute_line_metrics(canvas_json: Dict[str, Any]) -> Dict[str, float]:
+    """
+    캔버스 JSON에서 path 타입만 추출하여
+    - 직선에서의 편차(RMSE)
+    - 길이의 변동성(jerkiness)
+    등을 계산.
+    """
     if not canvas_json or "objects" not in canvas_json:
         return {}
 
@@ -80,12 +116,14 @@ def compute_line_metrics(canvas_json: Dict[str, Any]) -> Dict[str, float]:
     xs = np.array(xs)
     ys = np.array(ys)
 
+    # y = ax + b 직선 근사
     A = np.vstack([xs, np.ones(len(xs))]).T
     a, b = np.linalg.lstsq(A, ys, rcond=None)[0]
     y_hat = a * xs + b
     residuals = ys - y_hat
     rmse = float(np.sqrt(np.mean(residuals ** 2)))
 
+    # 연속 구간 길이와 그 변동성
     diffs = np.sqrt(np.diff(xs) ** 2 + np.diff(ys) ** 2)
     total_length = float(np.sum(diffs))
     jerkiness = float(np.std(diffs))
@@ -98,10 +136,13 @@ def compute_line_metrics(canvas_json: Dict[str, Any]) -> Dict[str, float]:
 
 
 # ===============================
-# 3. 타자 리듬 특징 추출
+# 4. 타자 리듬 특징 추출 (ITD 기반)
 # ===============================
 
 def compute_typing_metrics(timestamps: List[float]) -> Dict[str, float]:
+    """
+    버튼을 누른 시각 리스트 → Inter-Tap Duration(ITD) → 분위수/변동성.
+    """
     if len(timestamps) < 5:
         return {}
 
@@ -126,13 +167,20 @@ def compute_typing_metrics(timestamps: List[float]) -> Dict[str, float]:
 
 
 # ===============================
-# 4. 상태 분석 heuristic
+# 5. 상태 분석 heuristic
 # ===============================
 
 def analyze_state(
     line_metrics: Dict[str, float],
     typing_metrics: Dict[str, float],
 ) -> Dict[str, float]:
+    """
+    선 따라 그리기 + 타자 리듬에서 얻은 특징으로
+    - 불안(Anxiety)
+    - 피로(Fatigue)
+    - 집중/안정(Focus)
+    간단 점수(0~100)를 만드는 heuristic.
+    """
     anxiety = 0.0
     fatigue = 0.0
     focus = 50.0  # 중간값에서 시작
@@ -164,7 +212,7 @@ def analyze_state(
 
 
 # ===============================
-# 5. 크롤링 예시
+# 6. 크롤링 예시 (평균값 & 상태별 팁)
 # ===============================
 
 AVERAGE_STATS_URL = "https://example.com/phone_emotion_stats.html"
@@ -172,6 +220,10 @@ COPING_TIP_URL = "https://example.com/phone_emotion_tips.html"
 
 
 def fetch_reference_stats() -> Dict[str, float]:
+    """
+    외부 웹에서 평균적인 상태 값을 긁어오는 예시.
+    (실제 프로젝트에서는 URL과 span id를 수정)
+    """
     try:
         resp = requests.get(AVERAGE_STATS_URL, timeout=5)
         resp.raise_for_status()
@@ -192,6 +244,7 @@ def fetch_reference_stats() -> Dict[str, float]:
             "avg_focus": get_span_float("avg_focus", 55.0),
         }
     except Exception:
+        # 데모용 기본값
         return {
             "avg_anxiety": 40.0,
             "avg_fatigue": 35.0,
@@ -200,6 +253,10 @@ def fetch_reference_stats() -> Dict[str, float]:
 
 
 def fetch_coping_tips(topic: str) -> List[str]:
+    """
+    특정 주제(anxiety/fatigue/focus)에 대한 간단한 팁을
+    외부 웹에서 긁어오는 예시. 실패 시 기본 팁 반환.
+    """
     try:
         resp = requests.get(COPING_TIP_URL, timeout=5)
         resp.raise_for_status()
@@ -245,7 +302,7 @@ def fetch_coping_tips(topic: str) -> List[str]:
 
 
 # ===============================
-# 6. 세션 상태
+# 7. 세션 상태 초기화
 # ===============================
 
 if "line_json" not in st.session_state:
@@ -257,29 +314,36 @@ if "typing_taps" not in st.session_state:
 if "line_canvas_key" not in st.session_state:
     st.session_state["line_canvas_key"] = 0
 
+if "line_guides" not in st.session_state:
+    # 점 가이드는 한 번 생성해서 계속 재사용
+    st.session_state["line_guides"] = make_dot_guides()
+
 
 # ===============================
-# 7. 사이드바
+# 8. 사이드바 네비게이션
 # ===============================
 
 st.sidebar.title("📱 피젯 감정 탐색 앱")
 page = st.sidebar.radio(
     "메뉴",
-    ["1. 선 따라 그리기", "2. 타자 리듬 테스트", "3. 종합 결과 보기"],
+    ["1. 점 이어 그리기", "2. 타자 리듬 테스트", "3. 종합 결과 보기"],
 )
 
 
 # ===============================
-# 8-1. 선 따라 그리기 (사용법만 안내)
+# 9-1. 점 이어 그리기 (Line tracing with dots)
 # ===============================
 
 if page.startswith("1"):
-    st.header("✏️ 1. 선 따라 그리기")
+    st.header("✏️ 1. 점을 이어 선 그리기")
 
     st.markdown(
         """
-        아래 상자 안에, 왼쪽에서 오른쪽으로 **직선을 한 번 쭉 그려보세요.**  
-        힘을 빼고, 너무 신경 쓰지 말고 자연스럽게 그려보면 됩니다.
+        아래 상자 안에 보이는 **파란 점들을 순서대로 이어서**  
+        한 번 쭉 선을 그려보세요.  
+
+        - 점을 꼭 정확히 맞추지 않아도 괜찮습니다.  
+        - 힘을 빼고, 자연스럽게 움직이는 느낌으로 그려보면 됩니다.
         """
     )
 
@@ -293,6 +357,7 @@ if page.startswith("1"):
         drawing_mode="freedraw",
         point_display_radius=0,
         key=f"line_canvas_{st.session_state['line_canvas_key']}",
+        initial_drawing=st.session_state["line_guides"],  # 점 가이드
     )
 
     col1, col2 = st.columns(2)
@@ -307,7 +372,7 @@ if page.startswith("1"):
 
 
 # ===============================
-# 8-2. 타자 리듬 테스트 (사용법만 안내)
+# 9-2. 타자 리듬 테스트
 # ===============================
 
 elif page.startswith("2"):
@@ -315,8 +380,12 @@ elif page.startswith("2"):
 
     st.markdown(
         """
-        아래 버튼들을 **원하는 만큼 여러 번** 눌러보세요.  
-        일정하게 눌러도 좋고, 생각나는 대로 두드려도 괜찮습니다.
+        아래 버튼들을 **여러 번** 눌러보세요.  
+
+        - 일정한 속도로 눌러도 좋고,  
+        - 생각나는 대로 두드려도 괜찮습니다.  
+
+        그냥 손이 가는 대로 눌러보면 됩니다.
         """
     )
 
@@ -337,7 +406,7 @@ elif page.startswith("2"):
 
 
 # ===============================
-# 8-3. 종합 결과 보기 (여기에서만 해석 설명)
+# 9-3. 종합 결과 보기 (해석 + 시각화)
 # ===============================
 
 elif page.startswith("3"):
@@ -352,21 +421,21 @@ elif page.startswith("3"):
         st.subheader("① 만지작거림에서 추출된 특징들")
 
         if line_metrics:
-            st.markdown("#### 선 따라 그리기")
+            st.markdown("#### 점 이어 그리기")
             st.write(pd.DataFrame([line_metrics]).T.rename(columns={0: "값"}))
             st.markdown(
                 """
-                - `line_rmse`: 직선에서 얼마나 벗어나 있는지 정도  
-                - `line_jerkiness`: 선을 그릴 때 길이 변화가 얼마나 들쭉날쭉했는지  
+                - `line_rmse`: 전체적으로 볼 때, 한 줄로 이어졌다고 가정했을 때 그 직선에서 얼마나 벗어나 있는지  
+                - `line_jerkiness`: 선을 따라 움직일 때, 선 분 길이가 얼마나 들쭉날쭉했는지  
                 """
             )
 
         if typing_metrics:
             st.markdown("#### 타자 리듬 (버튼 사이 시간 간격)")
             st.write(pd.DataFrame([typing_metrics]).T.rename(columns={0: "값"}))
-            st.markdown(
+            st.markmarkdown(
                 """
-                - `typing_q1/Q2/Q3`: 버튼 사이 시간 간격의 분포  
+                - `typing_q1/Q2/Q3`: 버튼 사이 시간 간격 분포의 위치(중앙값과 범위)  
                 - `typing_var`: 간격의 변동성(리듬이 일정한지, 많이 흔들리는지)  
                 """
             )
@@ -381,11 +450,12 @@ elif page.startswith("3"):
 
         st.markdown(
             """
-            - **불안 점수**: 선의 흔들림·리듬 변동성이 클수록 높은 쪽으로 움직입니다.  
+            - **불안 점수**: 선의 흔들림과 리듬의 들쭉날쭉함이 클수록 높은 쪽으로 움직입니다.  
             - **피로 점수**: 버튼 간 간격이 전반적으로 길어질수록(느려질수록) 올라갑니다.  
-            - **집중/안정 점수**: 선이 비교적 일정하고, 리듬이 너무 들쭉날쭉하지 않을수록 높게 나옵니다.  
+            - **집중/안정 점수**: 선이 비교적 일정하고, 리듬이 너무 흔들리지 않을수록 높게 나옵니다.  
 
-            이 점수는 진단이 아니라, **지금 내 손이 어떻게 움직이고 있는지**를 숫자로 정리한 지표라고 보면 됩니다.
+            이 점수는 진단 결과라기보다는,  
+            **지금 내 손이 어떤 패턴으로 움직이고 있는지**를 숫자로 요약해서 보여주는 지표라고 보면 좋습니다.
             """
         )
 
@@ -405,13 +475,6 @@ elif page.startswith("3"):
         }, index=["불안", "피로", "집중/안정"])
 
         st.write(compare_df)
-
-        # 한글 폰트 설정 (환경에 맞게 조정 필요)
-        try:
-            plt.rcParams["font.family"] = "NanumGothic"
-        except Exception:
-            plt.rcParams["font.family"] = "DejaVu Sans"
-        plt.rcParams["axes.unicode_minus"] = False
 
         fig, ax = plt.subplots(figsize=(6, 4))
         x = np.arange(len(compare_df.index))
@@ -433,17 +496,17 @@ elif page.startswith("3"):
         col_a, col_f, col_c = st.columns(3)
 
         with col_a:
-            st.markdown("##### 불안 쪽이 높게 나왔을 때")
+            st.markdown("##### 불안 점수가 높게 나왔을 때")
             for t in fetch_coping_tips("anxiety"):
                 st.markdown(f"- {t}")
 
         with col_f:
-            st.markdown("##### 피로 쪽이 높게 나왔을 때")
+            st.markdown("##### 피로 점수가 높게 나왔을 때")
             for t in fetch_coping_tips("fatigue"):
                 st.markdown(f"- {t}")
 
         with col_c:
-            st.markdown("##### 집중/안정을 조금 더 높이고 싶을 때")
+            st.markdown("##### 집중/안정 점수를 조금 더 올려보고 싶을 때")
             for t in fetch_coping_tips("focus"):
                 st.markdown(f"- {t}")
 
