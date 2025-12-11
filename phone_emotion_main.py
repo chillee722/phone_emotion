@@ -417,7 +417,6 @@ if page.startswith("1"):
     )
 
     col1, col2 = st.columns(2)
-        col1, col2 = st.columns(2)
     with col1:
         if st.button("이 패턴 시도 저장하기"):
             if canvas_result.json_data:
