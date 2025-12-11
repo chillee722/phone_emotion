@@ -52,7 +52,27 @@ st.markdown("""
 # ===============================
 # 2. 잠금화면 패턴 도안 및 점 배치
 # ===============================
-
+def collect_self_report(source: str):
+    st.markdown("### 😊 지금 나의 감정·상태 자가 보고")
+    st.caption("측정된 특징을 학습시키기 위한 **Ground Truth**로 사용됩니다.")
+    
+    col_a, col_f, col_c = st.columns(3)
+    
+    with col_a:
+        anxiety = st.slider("현재 **불안** 수준 (1=매우 낮음, 5=매우 높음)", 1, 5, 3, key=f"sr_anxiety_{source}")
+    with col_f:
+        fatigue = st.slider("현재 **피로** 수준 (1=매우 낮음, 5=매우 높음)", 1, 5, 3, key=f"sr_fatigue_{source}")
+    with col_c:
+        focus = st.slider("현재 **집중** 수준 (1=매우 낮음, 5=매우 높음)", 1, 5, 3, key=f"sr_focus_{source}")
+        
+    if st.button("현재 상태 저장", key=f"save_sr_{source}"):
+        report = {
+            "anxiety": float(anxiety), "fatigue": float(fatigue), "focus": float(focus),
+            "timestamp": time.time(), "source": source
+        }
+        st.session_state["self_reports"].append(report)
+        st.success(f"현재 자가 보고 상태를 저장했습니다. (총 {len(st.session_state['self_reports'])}개)")
+        
 LOCK_PATTERNS: List[List[int]] = [
     [1, 2, 3, 6, 9], [1, 4, 7, 8, 9], [2, 5, 8], [1, 5, 9], [3, 5, 7],
     [1, 2, 5, 8], [4, 5, 6, 9], [7, 8, 5, 2], [3, 2, 1, 4, 7], [9, 6, 3, 2, 1],
@@ -328,26 +348,7 @@ page = st.sidebar.radio(
 # Helper: 자가 보고 입력 및 저장
 # ===============================
 
-def collect_self_report(source: str):
-    st.markdown("### 😊 지금 나의 감정·상태 자가 보고")
-    st.caption("측정된 특징을 학습시키기 위한 **Ground Truth**로 사용됩니다.")
-    
-    col_a, col_f, col_c = st.columns(3)
-    
-    with col_a:
-        anxiety = st.slider("현재 **불안** 수준 (1=매우 낮음, 5=매우 높음)", 1, 5, 3, key=f"sr_anxiety_{source}")
-    with col_f:
-        fatigue = st.slider("현재 **피로** 수준 (1=매우 낮음, 5=매우 높음)", 1, 5, 3, key=f"sr_fatigue_{source}")
-    with col_c:
-        focus = st.slider("현재 **집중** 수준 (1=매우 낮음, 5=매우 높음)", 1, 5, 3, key=f"sr_focus_{source}")
-        
-    if st.button("현재 상태 저장", key=f"save_sr_{source}"):
-        report = {
-            "anxiety": float(anxiety), "fatigue": float(fatigue), "focus": float(focus),
-            "timestamp": time.time(), "source": source
-        }
-        st.session_state["self_reports"].append(report)
-        st.success(f"현재 자가 보고 상태를 저장했습니다. (총 {len(st.session_state['self_reports'])}개)")
+
 
 
 # ===============================
