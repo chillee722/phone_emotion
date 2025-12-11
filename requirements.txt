@@ -6,3 +6,4 @@ matplotlib
 requests
 beautifulsoup4
 Pillow
+streamlit-key-press
