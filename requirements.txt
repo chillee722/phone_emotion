@@ -1,18 +1,9 @@
-# Core Streamlit libraries
 streamlit
+streamlit-drawable-canvas
 numpy
 pandas
 matplotlib
 requests
 beautifulsoup4
-
-# UI/Component libraries
-streamlit-drawable-canvas
-streamlit-key-press
-
-# Image library (Pillow)
 Pillow
-
-# Streamlit 환경에서 컴파일 오류를 줄이기 위해 버전을 명시할 수도 있습니다.
-# 예를 들어, Streamlit의 특정 버전을 사용하거나, 문제가 되는 패키지의 
-# 호환되는 버전을 찾아서 명시합니다. (일단은 버전 없이 시도해봅니다.)
+streamlit-key-press==0.0.1  # 최신 버전 또는 명확한 버전 명시 (버전 충돌 방지)
