@@ -384,16 +384,17 @@ if page.startswith("1"):
     )
 
     col1, col2 = st.columns(2)
-    with col1:
-        if st.button("이 패턴 시도 저장하기"):
-            if canvas_result.json_data:
-                duration = time.time() - st.session_state["pattern_start_time"] if st.session_state["pattern_start_time"] is not None else None
-                metrics = compute_pattern_metrics(canvas_result.json_data, duration, pattern_id=current_idx + 1)
-                if metrics:
-                    st.session_state["pattern_records"].append(metrics)
-                    st.success("이번 패턴 시도를 저장했습니다. (4번 탭에서 통계에 반영됩니다.)")
-                else: st.warning("선 데이터가 부족해서 이번 시도는 저장되지 않았습니다.")
-            else: st.warning("아직 그려진 내용이 없습니다.")
+    with col1:
+        if st.button("이 패턴 시도 저장하기"):
+            if canvas_result.json_data:
+                duration = time.time() - st.session_state["pattern_start_time"] if st.session_state["pattern_start_time"] is not None else None
+                metrics = compute_pattern_metrics(canvas_result.json_data, duration, pattern_id=current_idx + 1)
+                if metrics:
+                    st.session_state["pattern_records"].append(metrics)
+                    st.success("이번 패턴 시도를 저장했습니다. (4번 탭에서 통계에 반영됩니다.)")
+                # 🚨 경고 메시지 수정
+                else: st.warning("선 데이터가 부족합니다. 패턴을 **시작부터 끝까지 한 번에** 이어서 그려주세요.")
+            else: st.warning("아직 그려진 내용이 없습니다.")
     with col2:
         if st.button("화면 비우고 다시 그리기"):
             st.session_state["pattern_start_time"] = None
