@@ -103,12 +103,15 @@ def compute_pattern_metrics(
         if obj.get("type") == "path":
             path = obj.get("path", [])
             for seg in path:
-                if len(seg) >= 3 and seg[0] in ("M", "L"):
-                    xs.append(seg[1])
-                    ys.append(seg[2])
+                # M, L, Q, C 등 어떤 세그먼트든 끝 좌표만 추출하면 됩니다.
+                # (M, L은 [type, x, y], Q는 [type, c1x, c1y, x, y], C는 [type, c1x, c1y, c2x, c2y, x, y])
+                # 모든 세그먼트의 마지막 두 요소는 x, y 좌표입니다.
+                if len(seg) >= 3 and isinstance(seg[-2], (int, float)): 
+                    xs.append(seg[-2])
+                    ys.append(seg[-1])
 
     # 점이 너무 적으면 분석 불가
-    if len(xs) < 3:
+    if len(xs) < 3: 
         return {}
 
     xs_arr = np.array(xs, dtype=float)
