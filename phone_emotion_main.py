@@ -737,7 +737,7 @@ elif page.startswith("4"):
         x = np.arange(len(compare_df.index))
         width = 0.35
 
-       ax.bar(x - width/2, compare_df["나"], width, label="나")
+        ax.bar(x - width/2, compare_df["나"], width, label="나")
         ax.bar(x + width/2, compare_df["평균(예시)"], width, label="평균(예시)")
 
         ax.set_xticks(x)
