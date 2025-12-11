@@ -86,50 +86,83 @@ def get_lock_points(width: int = 400, height: int = 400) -> List[Dict[str, Any]]
 # 3. 패턴 그리기 특징 추출
 # ===============================
 
-def compute_pattern_metrics(canvas_json: Dict[str, Any],
-                            duration: float | None,
-                            pattern_id: int) -> Dict[str, float]:
-    """패턴 그리기 특징 계산. pattern_speed 특징 포함."""
-    if not canvas_json or "objects" not in canvas_json: return {}
-    xs, ys = [], []
-    for obj in canvas_json["objects"]:
-        if obj.get("type") == "path":
-            path = obj.get("path", [])
-            for seg in path:
-                if len(seg) >= 3 and seg[0] in ("M", "L"):
-                    xs.append(seg[1])
-                    ys.append(seg[2])
-    
-    # 🚨 수정: 최소 샘플 수 기준을 5 -> 3으로 완화
-    if len(xs) < 3: return {} 
-    
-    xs_arr, ys_arr = np.array(xs), np.array(ys)
-    
-    A = np.vstack([xs_arr, np.ones(len(xs_arr))]).T
-    # 최소 점 2개만 있어도 lstsq는 실행 가능하므로, len(xs) >= 2만 충족되면 됨.
-    a, b = np.linalg.lstsq(A, ys_arr, rcond=None)[0] 
-    residuals = ys_arr - (a * xs_arr + b)
-    rmse = float(np.sqrt(np.mean(residuals ** 2)))
+def compute_pattern_metrics(
+    canvas_json: Dict[str, Any],
+    duration: float | None,
+    pattern_id: int,
+) -> Dict[str, float]:
+    """패턴 그리기 특징 계산. pattern_speed 특징 포함."""
+    if not canvas_json or "objects" not in canvas_json:
+        return {}
 
-    # diffs 계산을 위해 최소 2개 점 필요 (len(xs) >= 2)
-    diffs = np.sqrt(np.diff(xs_arr) ** 2 + np.diff(ys_arr) ** 2)
-    total_length = float(np.sum(diffs))
-    # Jerkiness 계산을 위해 최소 3개 점 필요 (len(diffs) >= 2)
-    jerkiness = float(np.std(diffs)) 
+    xs: List[float] = []
+    ys: List[float] = []
 
-    metrics = {
-        "pattern_rmse": rmse, "pattern_length": total_length, "pattern_jerkiness": jerkiness,
-    }
+    # canvas 데이터에서 path 좌표만 추출
+    for obj in canvas_json["objects"]:
+        if obj.get("type") == "path":
+            path = obj.get("path", [])
+            for seg in path:
+                if len(seg) >= 3 and seg[0] in ("M", "L"):
+                    xs.append(seg[1])
+                    ys.append(seg[2])
 
-    if duration is not None and duration > 0:
-        metrics["pattern_duration"] = float(duration)
-        metrics["pattern_speed"] = total_length / duration
-    else:
-        metrics["pattern_duration"] = 0.0
-        metrics["pattern_speed"] = 0.0
-    
-    metrics["pattern_id"] = float(pattern_id)
-    return metrics
+    # 점이 너무 적으면 분석 불가
+    if len(xs) < 3:
+        return {}
+
+    xs_arr = np.array(xs, dtype=float)
+    ys_arr = np.array(ys, dtype=float)
+
+    # 직선에 대한 최소제곱 회귀 → 선에서 얼마나 벗어났는지(RMSE)
+    A = np.vstack([xs_arr, np.ones(len(xs_arr))]).T
+    a, b = np.linalg.lstsq(A, ys_arr, rcond=None)[0]
+    residuals = ys_arr - (a * xs_arr + b)
+    rmse = float(np.sqrt(np.mean(residuals ** 2)))
+
+    # 길이 & jerkiness
+    diffs = np.sqrt(np.diff(xs_arr) ** 2 + np.diff(ys_arr) ** 2)
+    total_length = float(np.sum(diffs))
+    jerkiness = float(np.std(diffs))
+
+    metrics: Dict[str, float] = {
+        "pattern_rmse": rmse,
+        "pattern_length": total_length,
+        "pattern_jerkiness": jerkiness,
+    }
+
+    if duration is not None and duration > 0:
+        metrics["pattern_duration"] = float(duration)
+        metrics["pattern_speed"] = total_length / duration
+    else:
+        metrics["pattern_duration"] = 0.0
+        metrics["pattern_speed"] = 0.0
+
+    metrics["pattern_id"] = float(pattern_id)
+    return metrics
+
+
+def aggregate_pattern_metrics(records: List[Dict[str, float]]) -> Dict[str, float]:
+    """여러 패턴 시도에 대한 metrics 리스트를 받아 각 특성의 평균값으로 요약."""
+    if not records:
+        return {}
+
+    df = pd.DataFrame(records)
+    agg: Dict[str, float] = {}
+
+    for col in [
+        "pattern_rmse",
+        "pattern_length",
+        "pattern_jerkiness",
+        "pattern_duration",
+        "pattern_speed",
+    ]:
+        if col in df.columns:
+            agg[col] = float(df[col].mean())
+
+    agg["pattern_trials"] = float(len(df))
+    return agg
+
 
 # ===============================
 # 4. 키보드 / 스크롤 특징 추출 (ITD 기반)
