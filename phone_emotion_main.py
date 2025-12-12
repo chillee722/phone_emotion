@@ -41,7 +41,8 @@ st.set_page_config(
 st.markdown("""
     <style>
         .block-container {
-            padding-top: 0.6rem !important;
+            /* 🚨 수정: 상단 헤더 텍스트가 잘리지 않도록 padding-top 값을 늘립니다. */
+            padding-top: 1.5rem !important; 
             padding-left: 1rem !important;
             padding-right: 1rem !important;
         }
