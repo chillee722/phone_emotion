@@ -9,7 +9,7 @@ APP_TITLE = "Fidget Emotion Backend"
 DB_PATH = os.environ.get("DB_PATH", "events.db")  # Render에서는 기본으로 로컬 파일
 REFERENCE_JSON_PATH = os.environ.get("REFERENCE_JSON_PATH", "reference_stats.json")
 
-MIN_N_FOR_PUBLIC_STATS = 10  # 과제/데모 용도로 낮춰둠(운영이면 30 추천)
+MIN_N_FOR_PUBLIC_STATS = 1  # 과제/데모 용도로 낮춰둠(운영이면 30 추천)
 
 app = FastAPI(title=APP_TITLE)
 
