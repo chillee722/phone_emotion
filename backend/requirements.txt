@@ -1,5 +1,6 @@
 fastapi
 uvicorn
-pydantic
 numpy
+requests
+beautifulsoup4
 supabase
