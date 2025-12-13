@@ -20,7 +20,34 @@ import uuid
 # ✅ Render 백엔드 주소 (배포 후 여기를 Render URL로 바꿔주세요)
 API_BASE = "https://phone-emotion.onrender.com"  # 예: "https://your-backend.onrender.com"
 
+def ensure_anon_user_id():
+    """사용자 식별(익명)용. 브라우저 세션 동안 유지."""
+    if "anon_user_id" not in st.session_state:
+        st.session_state["anon_user_id"] = f"anon_{int(time.time())}_{np.random.randint(1000,9999)}"
 
+def post_event_to_api(payload: Dict[str, Any], consent: bool):
+    """Render 백엔드(/events)에 이벤트 저장."""
+    if not consent:
+        return
+
+    ensure_anon_user_id()
+
+    try:
+        r = requests.post(
+            f"{API_BASE}/events",
+            json={
+                "ts": time.time(),
+                "user_id": st.session_state["anon_user_id"],
+                "consent": True,
+                "payload": payload,
+            },
+            timeout=8,
+        )
+        # 디버깅용(원하면 지워도 됨)
+        if r.status_code >= 400:
+            st.warning(f"서버 저장 실패: {r.status_code} {r.text[:200]}")
+    except Exception as e:
+        st.warning(f"서버 저장 중 오류: {e}")
 # ===============================
 # 0. 한글 폰트 설정
 # ===============================
