@@ -51,21 +51,24 @@ def health():
 @app.post("/events")
 def ingest_event(e: EventIn):
     if not e.consent:
-        raise HTTPException(status_code=400, detail="consent=false")
+        raise HTTPException(status_code=400, detail="consent=false; not storing")
 
-    data = {
-        "ts": e.ts,
-        "user_id": e.user_id,
-        "consent": e.consent,
-        "payload": e.payload,
-    }
+    if supabase is None:
+        raise HTTPException(status_code=500, detail="Supabase client not initialized")
 
-    res = supabase.table("events").insert(data).execute()
+    try:
+        supabase.table("events").insert({
+            "ts": e.ts,
+            "user_id": e.user_id,
+            "consent": e.consent,
+            "payload": e.payload,
+        }).execute()
 
-    if res.error:
-        raise HTTPException(status_code=500, detail=str(res.error))
+        return {"stored": True}
 
-    return {"stored": True}
+    except Exception as ex:
+        print("ERROR /events:", ex)
+        raise HTTPException(status_code=500, detail=str(ex))
 
 
 def extract_scores(metric: str, window_days: int = 0) -> np.ndarray:
