@@ -423,52 +423,49 @@ page = st.sidebar.radio(
 def collect_self_report(source: str):
     st.markdown("### 😊 지금 나의 감정·상태 자가 보고")
     st.caption("측정된 특징을 학습시키기 위한 **Ground Truth**로 사용됩니다.")
-    
-    col_a, col_f, col_c = st.columns(3)
-    
-    with col_a:
-        anxiety = st.slider("현재 **불안** 수준 (1=매우 낮음, 5=매우 높음)", 1, 5, 3, key=f"sr_anxiety_{source}")
-    with col_f:
-        fatigue = st.slider("현재 **피로** 수준 (1=매우 낮음, 5=매우 높음)", 1, 5, 3, key=f"sr_fatigue_{source}")
-    with col_c:
-        focus = st.slider("현재 **집중** 수준 (1=매우 낮음, 5=매우 높음)", 1, 5, 3, key=f"sr_focus_{source}")
-        
-       consent = st.checkbox(
-        "익명 통계 목적의 데이터 저장에 동의합니다 (퍼센타일 기준 생성에 사용)",
-        value=False,
-        key=f"consent_{source}",
+
+    consent = st.checkbox(
+        "연구 및 통계 생성을 위해 내 데이터를 익명으로 저장하는 것에 동의합니다.",
+        key=f"consent_{source}"
     )
 
+    col_a, col_f, col_c = st.columns(3)
+
+    with col_a:
+        anxiety = st.slider(
+            "현재 **불안** 수준 (1=매우 낮음, 5=매우 높음)",
+            1, 5, 3,
+            key=f"sr_anxiety_{source}"
+        )
+
+    with col_f:
+        fatigue = st.slider(
+            "현재 **피로** 수준 (1=매우 낮음, 5=매우 높음)",
+            1, 5, 3,
+            key=f"sr_fatigue_{source}"
+        )
+
+    with col_c:
+        focus = st.slider(
+            "현재 **집중** 수준 (1=매우 낮음, 5=매우 높음)",
+            1, 5, 3,
+            key=f"sr_focus_{source}"
+        )
+
     if st.button("현재 상태 저장", key=f"save_sr_{source}"):
+        if not consent:
+            st.warning("데이터 저장에 동의해야 저장할 수 있습니다.")
+            return
+
         report = {
-            "anxiety": float(anxiety), "fatigue": float(fatigue), "focus": float(focus),
-            "timestamp": time.time(), "source": source
-        }
-        st.session_state["self_reports"].append(report)
-
-        # ✅ 현재 시점의 점수/특징도 함께 저장(퍼센타일 분포 생성용)
-        pattern_metrics_agg = aggregate_pattern_metrics(st.session_state["pattern_records"])
-        typing_metrics = compute_typing_metrics(st.session_state["typing_timing_records"]) \
-            if st.session_state["typing_timing_records"] else {}
-        scroll_metrics = compute_scroll_metrics(
-            st.session_state.get("scroll_start_time"),
-            st.session_state.get("scroll_click_times", []),
-        ) if st.session_state.get("scroll_click_times") else {}
-
-        state_scores_now = analyze_state(pattern_metrics_agg, typing_metrics, scroll_metrics)
-
-        payload = {
+            "anxiety": float(anxiety),
+            "fatigue": float(fatigue),
+            "focus": float(focus),
+            "timestamp": time.time(),
             "source": source,
-            "self_report": report,
-            "pattern_metrics_agg": pattern_metrics_agg,
-            "typing_metrics": typing_metrics,
-            "scroll_metrics": scroll_metrics,
-            "state_scores": state_scores_now,
-            "app_version": "v1",
         }
 
-        post_event_to_api(payload, consent=consent)
-
+        st.session_state["self_reports"].append(report)
         st.success(f"현재 자가 보고 상태를 저장했습니다. (총 {len(st.session_state['self_reports'])}개)")
 
 
