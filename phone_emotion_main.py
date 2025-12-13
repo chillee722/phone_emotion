@@ -18,7 +18,7 @@ from streamlit_drawable_canvas import st_canvas
 import uuid
 
 # ✅ Render 백엔드 주소 (배포 후 여기를 Render URL로 바꿔주세요)
-API_BASE = "http://localhost:8000"  # 예: "https://your-backend.onrender.com"
+API_BASE = "https://phone-emotion.onrender.com"  # 예: "https://your-backend.onrender.com"
 
 
 # ===============================
