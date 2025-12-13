@@ -347,25 +347,6 @@ def fetch_coping_tips(topic: str) -> List[str]:
             return ["5~10분 정도 한 가지 일에만 집중해 보는 짧은 타이머를 설정해 보세요.", "잠깐 동안 알림을 꺼두고 화면에만 집중해 보세요.",]
         else: return []
 
-def post_event_to_api(payload: Dict[str, Any], consent: bool):
-    """동의한 경우에만 백엔드로 이벤트 저장"""
-    if not consent:
-        return
-    try:
-        requests.post(
-            f"{API_BASE}/events",
-            json={
-                "ts": time.time(),
-                "user_id": st.session_state.get("anon_user_id"),
-                "consent": True,
-                "payload": payload,
-            },
-            timeout=5,
-        )
-    except Exception:
-        # 서버가 잠깐 죽어도 앱이 멈추면 안 되므로 조용히 무시
-        pass
-
 def fetch_reference_stats_from_backend() -> Dict[str, Any]:
     """크롤러가 만든 reference-stats.json을 백엔드에서 가져옴"""
     try:
