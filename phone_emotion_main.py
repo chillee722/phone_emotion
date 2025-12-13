@@ -815,7 +815,31 @@ elif page.startswith("4"):
         with col_s1: st.metric(label="불안 점수", value=f"{state_scores['anxiety_score']:.1f}점", delta=None)
         with col_s2: st.metric(label="피로 점수", value=f"{state_scores['fatigue_score']:.1f}점", delta=None)
         with col_s3: st.metric(label="집중/안정 점수", value=f"{state_scores['focus_score']:.1f}점", delta=None)
-        
+
+                # ✅ 백엔드가 제공하는 기준(reference-stats.json) 가져오기
+        ref = fetch_reference_stats_from_backend()
+
+        st.subheader("⑤ 전체 사용자 분포 기준(퍼센타일)에서의 나의 위치")
+        st.caption("이 기준은 백엔드의 공개 통계 HTML을 BeautifulSoup으로 수집해 만든 reference-stats.json을 통해 제공됩니다.")
+
+        if ref and (ref.get("anxiety") or ref.get("fatigue") or ref.get("focus")):
+            anx_band = band_from_percentiles(state_scores["anxiety_score"], ref.get("anxiety") or {}, higher_is_better=False)
+            fat_band = band_from_percentiles(state_scores["fatigue_score"], ref.get("fatigue") or {}, higher_is_better=False)
+            foc_band = band_from_percentiles(state_scores["focus_score"], ref.get("focus") or {}, higher_is_better=True)
+
+            c1, c2, c3 = st.columns(3)
+            with c1:
+                st.metric("불안 퍼센타일 위치", anx_band)
+                st.caption(f"표본 수: {ref.get('n', {}).get('anxiety', 0)}")
+            with c2:
+                st.metric("피로 퍼센타일 위치", fat_band)
+                st.caption(f"표본 수: {ref.get('n', {}).get('fatigue', 0)}")
+            with c3:
+                st.metric("집중 퍼센타일 위치", foc_band)
+                st.caption(f"표본 수: {ref.get('n', {}).get('focus', 0)}")
+        else:
+            st.info("퍼센타일 기준 데이터를 아직 불러올 수 없습니다. (크롤러 실행 및 백엔드 reference-stats.json 확인 필요)")
+
         # 상태에 따른 조언 제공
         st.markdown("#### 💡 상태별 조언")
         if state_scores["anxiety_score"] >= 60:
