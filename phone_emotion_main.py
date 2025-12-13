@@ -816,7 +816,7 @@ elif page.startswith("4"):
         with col_s2: st.metric(label="피로 점수", value=f"{state_scores['fatigue_score']:.1f}점", delta=None)
         with col_s3: st.metric(label="집중/안정 점수", value=f"{state_scores['focus_score']:.1f}점", delta=None)
 
-                # ✅ 백엔드가 제공하는 기준(reference-stats.json) 가져오기
+        # ✅ 백엔드가 제공하는 기준(reference-stats.json) 가져오기
         ref = fetch_reference_stats_from_backend()
 
         st.subheader("⑤ 전체 사용자 분포 기준(퍼센타일)에서의 나의 위치")
