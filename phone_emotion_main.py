@@ -15,6 +15,11 @@ import matplotlib.font_manager as fm
 
 import streamlit as st
 from streamlit_drawable_canvas import st_canvas
+import uuid
+
+# ✅ Render 백엔드 주소 (배포 후 여기를 Render URL로 바꿔주세요)
+API_BASE = "http://localhost:8000"  # 예: "https://your-backend.onrender.com"
+
 
 # ===============================
 # 0. 한글 폰트 설정
@@ -315,10 +320,66 @@ def fetch_coping_tips(topic: str) -> List[str]:
             return ["5~10분 정도 한 가지 일에만 집중해 보는 짧은 타이머를 설정해 보세요.", "잠깐 동안 알림을 꺼두고 화면에만 집중해 보세요.",]
         else: return []
 
+def post_event_to_api(payload: Dict[str, Any], consent: bool):
+    """동의한 경우에만 백엔드로 이벤트 저장"""
+    if not consent:
+        return
+    try:
+        requests.post(
+            f"{API_BASE}/events",
+            json={
+                "ts": time.time(),
+                "user_id": st.session_state.get("anon_user_id"),
+                "consent": True,
+                "payload": payload,
+            },
+            timeout=5,
+        )
+    except Exception:
+        # 서버가 잠깐 죽어도 앱이 멈추면 안 되므로 조용히 무시
+        pass
+
+def fetch_reference_stats_from_backend() -> Dict[str, Any]:
+    """크롤러가 만든 reference-stats.json을 백엔드에서 가져옴"""
+    try:
+        r = requests.get(f"{API_BASE}/reference-stats.json", timeout=5)
+        if r.status_code == 200:
+            return r.json()
+        return {}
+    except Exception:
+        return {}
+
+def band_from_percentiles(value: float, stats: Dict[str, float], higher_is_better: bool = False) -> str:
+    """
+    stats: {"p10","p25","p50","p75","p90",...}
+    higher_is_better=False: 불안/피로
+    higher_is_better=True: 집중(높을수록 좋음) -> 문구만 반대로
+    """
+    if not stats:
+        return "표본 부족(기준 없음)"
+
+    p10, p25, p50, p75, p90 = stats["p10"], stats["p25"], stats["p50"], stats["p75"], stats["p90"]
+
+    # 불안/피로(높을수록 나쁨) 기준
+    if not higher_is_better:
+        if value >= p90: return "상위 10% (매우 높음)"
+        if value >= p75: return "상위 25% (높은 편)"
+        if value >= p25: return "중간 구간 (보통)"
+        if value >= p10: return "하위 25% (낮은 편)"
+        return "하위 10% (매우 낮음)"
+
+    # 집중(높을수록 좋음) 기준 -> “상위”가 좋은 의미
+    if value >= p90: return "상위 10% (매우 좋음)"
+    if value >= p75: return "상위 25% (좋은 편)"
+    if value >= p25: return "중간 구간 (보통)"
+    if value >= p10: return "하위 25% (낮은 편)"
+    return "하위 10% (매우 낮음)"
 
 # ===============================
 # 7. 세션 상태 초기화 (ITD 기반)
 # ===============================
+if "anon_user_id" not in st.session_state:
+    st.session_state["anon_user_id"] = str(uuid.uuid4())
 
 if "pattern_index" not in st.session_state: st.session_state["pattern_index"] = 0
 if "pattern_start_time" not in st.session_state: st.session_state["pattern_start_time"] = None
