@@ -6,7 +6,6 @@ import sqlite3, json, time, os
 import numpy as np
 from supabase import create_client, Client
 
-
 APP_TITLE = "Fidget Emotion Backend"
 DB_PATH = os.environ.get("DB_PATH", "events.db")  # Render에서는 기본으로 로컬 파일
 REFERENCE_JSON_PATH = os.environ.get("REFERENCE_JSON_PATH", "reference_stats.json")
@@ -14,6 +13,14 @@ REFERENCE_JSON_PATH = os.environ.get("REFERENCE_JSON_PATH", "reference_stats.jso
 MIN_N_FOR_PUBLIC_STATS = 1  # 과제/데모 용도로 낮춰둠(운영이면 30 추천)
 
 app = FastAPI(title=APP_TITLE)
+
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY")
+
+supabase: Client = create_client(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY
+)
 
 def init_db():
     con = sqlite3.connect(DB_PATH)
