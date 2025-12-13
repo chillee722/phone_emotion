@@ -492,8 +492,36 @@ def collect_self_report(source: str):
             "source": source,
         }
 
+        # 1) Streamlit 로컬(세션) 저장
         st.session_state["self_reports"].append(report)
+
+        # 2) 지금까지 수집된 특징들로 종합 점수 계산(백엔드에 같이 저장)
+        pattern_metrics_agg = aggregate_pattern_metrics(st.session_state.get("pattern_records", []))
+
+        typing_records = st.session_state.get("typing_timing_records", [])
+        typing_metrics = compute_typing_metrics(typing_records) if typing_records else {}
+
+        scroll_start = st.session_state.get("scroll_start_time")
+        scroll_clicks = st.session_state.get("scroll_click_times", [])
+        scroll_metrics = compute_scroll_metrics(scroll_start, scroll_clicks) if scroll_clicks else {}
+
+        state_scores_now = analyze_state(pattern_metrics_agg, typing_metrics, scroll_metrics)
+
+        payload = {
+            "source": source,
+            "self_report": report,
+            "pattern_metrics_agg": pattern_metrics_agg,
+            "typing_metrics": typing_metrics,
+            "scroll_metrics": scroll_metrics,
+            "state_scores": state_scores_now,
+            "app_version": "v1",
+        }
+
+        # 3) Render 백엔드 저장
+        post_event_to_api(payload, consent=consent)
+
         st.success(f"현재 자가 보고 상태를 저장했습니다. (총 {len(st.session_state['self_reports'])}개)")
+
 
 
 
