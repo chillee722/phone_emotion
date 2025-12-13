@@ -17,6 +17,10 @@ app = FastAPI(title=APP_TITLE)
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_ANON_KEY = os.environ.get("SUPABASE_ANON_KEY")
 
+supabase: Optional[Client] = None
+if SUPABASE_URL and SUPABASE_ANON_KEY:
+    supabase = create_client(SUPABASE_URL, SUPABASE_ANON_KEY)
+    
 supabase: Client = create_client(
     SUPABASE_URL,
     SUPABASE_ANON_KEY
