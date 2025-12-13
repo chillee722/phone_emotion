@@ -76,10 +76,47 @@ def ingest_event(e: EventIn):
 
 
 def extract_scores(metric: str, window_days: int = 0) -> np.ndarray:
+    """
+    metric: "anxiety_score" | "fatigue_score" | "focus_score"
+    Supabase events.payload.state_scores[metric] 값을 모아서 반환
+    """
     since_ts = None
     if window_days and window_days > 0:
         since_ts = time.time() - window_days * 86400
 
+    # --- 1) Supabase 우선 ---
+    if supabase is not None:
+        vals: list[float] = []
+        page_size = 1000
+        offset = 0
+
+        while True:
+            q = supabase.table("events").select("payload,ts").order("ts", desc=False)
+
+            if since_ts is not None:
+                q = q.gte("ts", since_ts)
+
+            # pagination
+            res = q.range(offset, offset + page_size - 1).execute()
+
+            rows = getattr(res, "data", None) or []
+            if not rows:
+                break
+
+            for row in rows:
+                payload = row.get("payload") or {}
+                state = payload.get("state_scores") or {}
+                v = state.get(metric)
+                if isinstance(v, (int, float)):
+                    vals.append(float(v))
+
+            if len(rows) < page_size:
+                break
+            offset += page_size
+
+        return np.array(vals, dtype=float)
+
+    # --- 2) (Fallback) SQLite ---
     con = sqlite3.connect(DB_PATH)
     cur = con.cursor()
     if since_ts is None:
@@ -101,6 +138,7 @@ def extract_scores(metric: str, window_days: int = 0) -> np.ndarray:
             pass
 
     return np.array(vals, dtype=float)
+
 
 def compute_percentiles(arr: np.ndarray) -> dict:
     p10, p25, p50, p75, p90 = np.percentile(arr, [10, 25, 50, 75, 90]).tolist()
