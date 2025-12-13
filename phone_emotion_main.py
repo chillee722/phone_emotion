@@ -433,13 +433,44 @@ def collect_self_report(source: str):
     with col_c:
         focus = st.slider("현재 **집중** 수준 (1=매우 낮음, 5=매우 높음)", 1, 5, 3, key=f"sr_focus_{source}")
         
+       consent = st.checkbox(
+        "익명 통계 목적의 데이터 저장에 동의합니다 (퍼센타일 기준 생성에 사용)",
+        value=False,
+        key=f"consent_{source}",
+    )
+
     if st.button("현재 상태 저장", key=f"save_sr_{source}"):
         report = {
             "anxiety": float(anxiety), "fatigue": float(fatigue), "focus": float(focus),
             "timestamp": time.time(), "source": source
         }
         st.session_state["self_reports"].append(report)
+
+        # ✅ 현재 시점의 점수/특징도 함께 저장(퍼센타일 분포 생성용)
+        pattern_metrics_agg = aggregate_pattern_metrics(st.session_state["pattern_records"])
+        typing_metrics = compute_typing_metrics(st.session_state["typing_timing_records"]) \
+            if st.session_state["typing_timing_records"] else {}
+        scroll_metrics = compute_scroll_metrics(
+            st.session_state.get("scroll_start_time"),
+            st.session_state.get("scroll_click_times", []),
+        ) if st.session_state.get("scroll_click_times") else {}
+
+        state_scores_now = analyze_state(pattern_metrics_agg, typing_metrics, scroll_metrics)
+
+        payload = {
+            "source": source,
+            "self_report": report,
+            "pattern_metrics_agg": pattern_metrics_agg,
+            "typing_metrics": typing_metrics,
+            "scroll_metrics": scroll_metrics,
+            "state_scores": state_scores_now,
+            "app_version": "v1",
+        }
+
+        post_event_to_api(payload, consent=consent)
+
         st.success(f"현재 자가 보고 상태를 저장했습니다. (총 {len(st.session_state['self_reports'])}개)")
+
 
 
 # ===============================
