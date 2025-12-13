@@ -51,17 +51,22 @@ def health():
 @app.post("/events")
 def ingest_event(e: EventIn):
     if not e.consent:
-        raise HTTPException(status_code=400, detail="consent=false; not storing")
+        raise HTTPException(status_code=400, detail="consent=false")
 
-    con = sqlite3.connect(DB_PATH)
-    cur = con.cursor()
-    cur.execute(
-        "INSERT INTO events (ts, user_id, payload_json) VALUES (?, ?, ?)",
-        (e.ts, e.user_id, json.dumps(e.payload, ensure_ascii=False))
-    )
-    con.commit()
-    con.close()
+    data = {
+        "ts": e.ts,
+        "user_id": e.user_id,
+        "consent": e.consent,
+        "payload": e.payload,
+    }
+
+    res = supabase.table("events").insert(data).execute()
+
+    if res.error:
+        raise HTTPException(status_code=500, detail=str(res.error))
+
     return {"stored": True}
+
 
 def extract_scores(metric: str, window_days: int = 0) -> np.ndarray:
     since_ts = None
