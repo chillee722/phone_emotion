@@ -40,7 +40,19 @@ def main():
     else:
         fetch_url = f"{url}?window_days={args.window_days}"
 
-    r = requests.get(fetch_url, timeout=10)
+    # Render free는 sleep 후 첫 응답이 느릴 수 있어서 timeout↑ + retry
+    last_err = None
+    for attempt in range(5):
+        try:
+            r = requests.get(fetch_url, timeout=60)  # 10초 -> 60초
+            r.raise_for_status()
+            break
+        except Exception as e:
+            last_err = e
+            time.sleep(2 * (attempt + 1))  # 2s,4s,6s,8s,10s
+    else:
+        raise last_err
+
     r.raise_for_status()
 
     soup = BeautifulSoup(r.text, "html.parser")
