@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
 import sqlite3, json, time, os
 import numpy as np
+from supabase import create_client
 
 APP_TITLE = "Fidget Emotion Backend"
 DB_PATH = os.environ.get("DB_PATH", "events.db")  # Render에서는 기본으로 로컬 파일
