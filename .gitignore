@@ -1,0 +1,21 @@
+﻿# python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# streamlit
+.streamlit/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# local secrets
+.env
+
+# local build artifacts
+*.log
+
+# If you don't want to commit local database files
+*.db
