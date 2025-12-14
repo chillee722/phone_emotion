@@ -728,11 +728,10 @@ elif page.startswith("4"):
         st.session_state["scroll_start_time"],
         st.session_state["scroll_click_times"],
     ) if st.session_state["scroll_click_times"] else {}
-    
+
     # 종합 상태 점수 계산 (모든 특징 사용)
     state_scores = analyze_state(pattern_metrics_agg, typing_metrics, scroll_metrics)
     ref_stats = fetch_reference_stats()
-
 
     if not (pattern_metrics_agg or typing_metrics or scroll_metrics):
         st.info("아직 수집된 데이터가 충분하지 않습니다. 1~3번 화면을 먼저 사용해 본 뒤 다시 와 주세요.")
@@ -742,8 +741,7 @@ elif page.startswith("4"):
         # --- 잠금 패턴 분석 표시 (정교화) ---
         if pattern_metrics_agg:
             st.markdown("### 🔐 잠금화면 패턴 분석 (Touch Dynamics)")
-            
-            # 특징별 설명 및 분석 목적 딕셔너리
+
             explanation_map = {
                 "pattern_rmse": ("RMSE (흔들림)", "궤적이 이상적인 직선에서 벗어난 정도. 손의 미세한 흔들림/부정확성 측정."),
                 "pattern_length": ("총 길이 (픽셀)", "그려진 선의 총 길이."),
@@ -752,23 +750,20 @@ elif page.startswith("4"):
                 "pattern_speed": ("속도 (픽셀/초)", "총 길이 / 총 시간. 패턴 그리기 속도 측정."),
                 "pattern_trials": ("시도 횟수", "총 패턴 시도 횟수."),
             }
-            
-            # DataFrame 재구성 및 출력
+
             data_list = []
             for feature, value in pattern_metrics_agg.items():
                 if feature in explanation_map:
-                    # 소수점 처리 (횟수는 정수로, 나머지는 소수점 3자리까지)
-                    formatted_value = int(value) if feature == 'pattern_trials' else f"{value:.3f}"
+                    formatted_value = int(value) if feature == "pattern_trials" else f"{value:.3f}"
                     data_list.append({
                         "특징 이름": explanation_map[feature][0],
                         "나의 평균값": formatted_value,
-                        "분석 목적": explanation_map[feature][1]
+                        "분석 목적": explanation_map[feature][1],
                     })
-            
-            df_pattern = pd.DataFrame(data_list)
-            st.dataframe(df_pattern.set_index('특징 이름'), use_container_width=True) 
 
-            # 패턴 기반의 상태 기여도 설명
+            df_pattern = pd.DataFrame(data_list)
+            st.dataframe(df_pattern.set_index("특징 이름"), use_container_width=True)
+
             st.markdown("#### 패턴 움직임 특징이 상태 점수에 미치는 영향")
             st.markdown("""
                 - **불안/초조 기여:** 높은 **RMSE** (흔들림) 및 **Jerkiness** (불규칙성)은 불안 점수를 높입니다.
@@ -780,7 +775,7 @@ elif page.startswith("4"):
         # --- 키보드 타이핑 분석 ---
         if typing_metrics:
             st.markdown("### ⌨️ 키보드 타이핑 분석 (ITD 특징)")
-            
+
             typing_explanation_map = {
                 "typing_itd_q2": ("ITD 중앙값 (Q2)", "키와 키 사이 간격(ITD)의 중간값. 평균적인 타이핑 속도 측정."),
                 "typing_itd_var": ("ITD 변동성 (분산)", "ITD의 분산. 타이핑 리듬의 불안정성 측정 (높을수록 불규칙)."),
@@ -789,65 +784,66 @@ elif page.startswith("4"):
                 "typing_duration_var": ("Duration 변동성", "키 누름 시간 변동성 (현재 0으로 처리됨)."),
                 "typing_total_taps": ("총 키 입력 수", "총 기록된 키 입력 이벤트 횟수."),
             }
-            
+
             typing_data_list = []
             for feature, value in typing_metrics.items():
                 if feature in typing_explanation_map:
-                    formatted_value = int(value) if feature == 'typing_total_taps' else f"{value:.4f}"
+                    formatted_value = int(value) if feature == "typing_total_taps" else f"{value:.4f}"
                     typing_data_list.append({
                         "특징 이름": typing_explanation_map[feature][0],
                         "나의 평균값": formatted_value,
-                        "분석 목적": typing_explanation_map[feature][1]
+                        "분석 목적": typing_explanation_map[feature][1],
                     })
-            
+
             df_typing = pd.DataFrame(typing_data_list)
-            st.dataframe(df_typing.set_index('특징 이름'), use_container_width=True)
+            st.dataframe(df_typing.set_index("특징 이름"), use_container_width=True)
+
             st.markdown("""
                 - **불안/초조:** 높은 **ITD 변동성**은 리듬 불안정으로 이어져 불안 점수를 높입니다.
                 - **피로:** 긴 **ITD 중앙값/평균**은 느린 타이핑 속도를 의미하며 피로 점수를 높입니다.
             """)
             st.markdown("---")
-            
 
         # --- 스크롤 버튼 사용 특징 ---
         if scroll_metrics:
             st.markdown("### 🧷 스크롤 테스트 분석 (체크포인트 ITD)")
-            
+
             scroll_explanation_map = {
                 "scroll_total_time": ("총 시간 (초)", "테스트 시작부터 마지막 클릭까지의 총 소요 시간."),
                 "scroll_click_count": ("클릭 횟수", "기록된 스크롤 체크포인트 클릭 횟수."),
                 "scroll_click_mean": ("ITD 평균 (초)", "연속된 클릭 간격(ITD)의 평균."),
                 "scroll_click_var": ("ITD 변동성 (분산)", "ITD의 분산. 스크롤 리듬의 불규칙성 측정."),
             }
-            
+
             scroll_data_list = []
             for feature, value in scroll_metrics.items():
                 if feature in scroll_explanation_map:
-                    formatted_value = int(value) if feature == 'scroll_click_count' else f"{value:.3f}"
+                    formatted_value = int(value) if feature == "scroll_click_count" else f"{value:.3f}"
                     scroll_data_list.append({
                         "특징 이름": scroll_explanation_map[feature][0],
                         "나의 평균값": formatted_value,
-                        "분석 목적": scroll_explanation_map[feature][1]
+                        "분석 목적": scroll_explanation_map[feature][1],
                     })
-            
+
             df_scroll = pd.DataFrame(scroll_data_list)
-            st.dataframe(df_scroll.set_index('특징 이름'), use_container_width=True)
+            st.dataframe(df_scroll.set_index("특징 이름"), use_container_width=True)
+
             st.markdown("""
                 - **불안/초조:** 높은 **ITD 변동성** 및 빠른 클릭 리듬은 불안 점수에 기여합니다.
                 - **피로:** 긴 **총 시간**은 피로 점수에 기여합니다.
             """)
             st.markdown("---")
 
-
         # ---- 종합 점수 ----
-        
         st.subheader("② 이 앱이 추정한 나의 종합 상태 점수 (0~100)")
-        
-        # 종합 상태 점수 표시
+
         col_s1, col_s2, col_s3 = st.columns(3)
-        with col_s1: st.metric(label="불안 점수", value=f"{state_scores['anxiety_score']:.1f}점", delta=None)
-        with col_s2: st.metric(label="피로 점수", value=f"{state_scores['fatigue_score']:.1f}점", delta=None)
-        with col_s3: st.metric(label="집중/안정 점수", value=f"{state_scores['focus_score']:.1f}점", delta=None)
+        with col_s1:
+            st.metric(label="불안 점수", value=f"{state_scores['anxiety_score']:.1f}점", delta=None)
+        with col_s2:
+            st.metric(label="피로 점수", value=f"{state_scores['fatigue_score']:.1f}점", delta=None)
+        with col_s3:
+            st.metric(label="집중/안정 점수", value=f"{state_scores['focus_score']:.1f}점", delta=None)
 
         # ✅ 백엔드가 제공하는 기준(reference-stats.json) 가져오기
         ref = fetch_reference_stats_from_backend()
@@ -873,7 +869,6 @@ elif page.startswith("4"):
         else:
             st.info("퍼센타일 기준 데이터를 아직 불러올 수 없습니다. (크롤러 실행 및 백엔드 reference-stats.json 확인 필요)")
 
-        # 상태에 따른 조언 제공
         st.markdown("#### 💡 상태별 조언")
         if state_scores["anxiety_score"] >= 60:
             st.warning("현재 불안 점수가 높습니다. 마음이 급하고 초조할 수 있습니다.")
@@ -885,36 +880,22 @@ elif page.startswith("4"):
             st.success("현재 집중/안정 점수가 매우 높습니다. 안정된 상태를 유지하고 있습니다.")
         else:
             st.info("현재 상태는 비교적 안정적입니다.")
-            
+
         st.markdown("---")
 
-        st.subheader("③ 다른 사람들의 평균(예시 값)과 비교")
-        compare_df = pd.DataFrame({
-            "나": [state_scores["anxiety_score"], state_scores["fatigue_score"], state_scores["focus_score"],],
-            "평균(예시)": [ref_stats["avg_anxiety"], ref_stats["avg_fatigue"], ref_stats["avg_focus"],],
-        }, index=["불안", "피로", "집중/안정"])
-        st.write(compare_df)
-        
-        # 차트 시각화
-        fig, ax = plt.subplots(figsize=(6, 4))
-        x, width = np.arange(len(compare_df.index)), 0.35
-        ax.bar(x - width/2, compare_df["나"], width, label="나")
-        ax.bar(x + width/2, compare_df["평균(예시)"], width, label="평균(예시)")
-        ax.set_xticks(x); ax.set_xticklabels(compare_df.index); ax.set_ylabel("점수 (0~100)"); ax.set_title("나와 평균 상태 비교"); ax.legend()
-        st.pyplot(fig)
-        
-        st.markdown("---")
-        
-        st.subheader("④ 수집된 나의 자가 보고 데이터 요약")
+        # ✅ (삭제 반영) ③ "평균(예시)과 비교" 섹션은 제거됨
+
+        st.subheader("③ 수집된 나의 자가 보고 데이터 요약")
         if st.session_state["self_reports"]:
             df_reports = pd.DataFrame(st.session_state["self_reports"])
-            df_reports['source'] = df_reports['source'].apply(lambda x: {"pattern": "패턴", "typing": "키보드", "scroll": "스크롤"}.get(x, x))
-            df_summary = df_reports.groupby('source')[['anxiety', 'fatigue', 'focus']].mean().reset_index()
-            df_summary.columns = ['활동', '불안 평균', '피로 평균', '집중 평균']
+            df_reports["source"] = df_reports["source"].apply(lambda x: {"pattern": "패턴", "typing": "키보드", "scroll": "스크롤"}.get(x, x))
+            df_summary = df_reports.groupby("source")[["anxiety", "fatigue", "focus"]].mean().reset_index()
+            df_summary.columns = ["활동", "불안 평균", "피로 평균", "집중 평균"]
             st.markdown(f"**총 {len(st.session_state['self_reports'])}개**의 자가 보고가 저장되었습니다.")
-            st.dataframe(df_summary.set_index('활동'))
+            st.dataframe(df_summary.set_index("활동"))
         else:
             st.info("저장된 자가 보고 데이터가 없습니다.")
+
 
 
 # ===============================
