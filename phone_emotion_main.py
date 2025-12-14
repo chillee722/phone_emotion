@@ -848,7 +848,7 @@ elif page.startswith("4"):
         # ✅ 백엔드가 제공하는 기준(reference-stats.json) 가져오기
         ref = fetch_reference_stats_from_backend()
 
-        st.subheader("⑤ 전체 사용자 분포 기준(퍼센타일)에서의 나의 위치")
+        st.subheader("③ 전체 사용자 분포 기준(퍼센타일)에서의 나의 위치")
         st.caption("이 기준은 백엔드의 공개 통계 HTML을 BeautifulSoup으로 수집해 만든 reference-stats.json을 통해 제공됩니다.")
 
         if ref and (ref.get("anxiety") or ref.get("fatigue") or ref.get("focus")):
@@ -885,7 +885,7 @@ elif page.startswith("4"):
 
         # ✅ (삭제 반영) ③ "평균(예시)과 비교" 섹션은 제거됨
 
-        st.subheader("③ 수집된 나의 자가 보고 데이터 요약")
+        st.subheader("④ 수집된 나의 자가 보고 데이터 요약")
         if st.session_state["self_reports"]:
             df_reports = pd.DataFrame(st.session_state["self_reports"])
             df_reports["source"] = df_reports["source"].apply(lambda x: {"pattern": "패턴", "typing": "키보드", "scroll": "스크롤"}.get(x, x))
